@@ -4,6 +4,7 @@ This robot and system aims to be able to play a regular chess match against any 
 ## CAD
 ![image info](CAD.jpeg)
 
-## OpenCv
+## OpenCv Auto homing demo
+![Alt Text](autoHomingDemo.gif)
 
-![image info](SCARA.jpeg)
+

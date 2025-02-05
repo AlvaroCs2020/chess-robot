@@ -4,15 +4,19 @@ import cv2
 import sys
 import numpy as np
 import math
+import serial 
+import time 
+arduino = serial.Serial(port='COM4', baudrate=9600, timeout=.1)  
 class CodeDetection():
     def __init__(self, initiImage):# load the input image from disk and resize it
         self.image = initiImage
-        self.numberOfCodes = 3
+        self.numberOfCodes = 4
         if self.image is None:
             print("[ERROR] No se pudo cargar la imagen. Verifica el path.")
             exit(1)
         self.centers = []
         self.markers = []
+        self.angles = []
     def reset_centers(self):
         self.centers = []
         self.markers = []
@@ -78,7 +82,7 @@ class CodeDetection():
     
     def calculateAngles(self, triangle):
     # Extract points from the triangle
-        if(len(triangle) != self.numberOfCodes):
+        if(len(triangle) != self.numberOfCodes-1):
             return
         try:
             A, B, C = triangle
@@ -97,25 +101,57 @@ class CodeDetection():
         angleC = 180 - angleA - angleB  # The sum of the angles in a triangle is 180°
 
         return angleA, angleB, angleC
-    
+#    def angleBetw2():
+#        math.degrees(math.acos(() / (2 * b * c)))
     def geometryProcessing(self):
         
         if(len(self.markers) != self.numberOfCodes):
             pass
 
         self.centers.sort()
-
+        angles = []
+        vectors = []
         for i in range(1,len(self.centers)):
             pt1,pt2 = self.centers[i-1][1],self.centers[i][1]  
             #print(str(pt1) + " "+ str(pt2)) 
+            x1 = np.array(pt1)
+            x2 = np.array(pt2)
+            vectors.append((x2-x1)) #L
+            #angle = math.degrees(math.acos(np.dot(x1,x2) / (np.linalg.norm(x1)*np.linalg.norm(x2))))
+            
+            #angles.append(angle)
             self.image = cv2.line(self.image, pt1,pt2, (255,0, 0), 2)
         triangle = []
+        
+        for i in range(1,len(vectors)):
+            pt = self.centers[i][1]
+            pt2 = self.centers[i + 1][1]
+            y = pt1[1] - pt2[1]
+            x1,x2 = vectors[i-1],vectors[i]
+            try:
+                angle = math.degrees(math.acos(np.dot(x1,x2) / (np.linalg.norm(x1)*np.linalg.norm(x2))))
+
+                #n = int(angle*100)
+                #angle = angle/100
+                if(0 < y):
+                    angle *= -1 
+                angle = round(angle,3)
+                cv2.putText(self.image, str(angle),
+                    (pt[0], pt[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (255, 0, 0), 2)
+                angles.append(angle)
+
+            except:
+                return
+            self.angles = angles
 
         for (id,(x,y)) in self.centers:
             triangle.append((x,y))
-
-        print(str(self.calculateAngles(triangle)))
-
+        #for i in angles:
+        #    print(str(i) + ";")
+        #print(str(self.calculateAngles(triangle)))
+    def get_angles(self):
+        return self.angles
     def show(self):
         # show the output image
         cv2.imshow("Image", self.image)
@@ -166,10 +202,30 @@ while True:
     else:
         cv2.imshow(window_name, frame)
     if cv2.waitKey(delay) & 0xFF == ord('r'):
-        codeDetector.reset_centers()
+        test = "{1;30;1} "
+        index = 2
+        for i in codeDetector.get_angles():
+            sense = 1
+            if(index == 1):
+                if(0 < i):
+                    sense = 0
+            else:
+                if(0 < -i):
+                    sense = 0
+            message = "{};{};{}".format(index, abs(i), sense)
+            message = "{" + message + "}"
+            
+            arduino.write(bytes(message, 'utf-8'))
+            time.sleep(0.1)
+            index-=1
+            
+            print(message)
+        #
+        
+        #codeDetector.reset_centers()
     if cv2.waitKey(delay) & 0xFF == ord('q'):
         break
-
+    
 cv2.destroyWindow(window_name)
     
 
