@@ -2,7 +2,7 @@
 import cv2
 import numpy as np
 import time
-global emptyPhoto
+global emptylastSavedFrame
 global emptySlices
 emptySlices = []
 cap = cv2.VideoCapture(1)
@@ -72,8 +72,8 @@ def extract_region(image, points):
 
     #return extracted_region
 def saveSlices(image, corners):
-    global photo
-    photo = image
+    global lastSavedFrame
+    lastSavedFrame = image
     slices = []
     coordinates = []
     for i in range(1,9): #hasta la penultima fila
@@ -246,9 +246,9 @@ def getBiggestError(slices, coordinates, img):
 
 staticSlices = []
 staticCoordinates = []
-global photo
+global lastSavedFrame
 index = 0
-emptyPhoto = []
+emptylastSavedFrame = []
 
 while not ret:
     ret, frame = cap.read()
@@ -268,7 +268,7 @@ while True:
     # if chessboard corners are detected
     if ret == True:
         if doOnlyOnce:
-            emptyPhoto = original.copy() 
+            emptylastSavedFrame = original.copy() 
             first_corners = corners
             _, staticCorners = addCorners(first_corners, img)
             staticSlices, staticCoordinates = saveSlices(original, staticCorners)#TODO hacer la comparacion frame por frame
@@ -304,7 +304,7 @@ while True:
         cv2.line(img, topRight, bottomRight, (0, 255, 0), 2)
         cv2.line(img, bottomRight, bottomLeft, (0, 255, 0), 2)
         cv2.line(img, bottomLeft, topLeft, (0, 255, 0), 2)
-        gray3 = cv2.cvtColor(photo, cv2.COLOR_BGR2GRAY)
+        gray3 = cv2.cvtColor(lastSavedFrame, cv2.COLOR_BGR2GRAY)
         cv2.imshow('ultima foto guardada',gray3)
         cv2.imshow('ext',extracted)
         
@@ -323,4 +323,4 @@ while True:
         index = (index- 1)%len(staticSlices)
         print(index)
     cv2.imshow('Chessboard',img)
-    cv2.imshow('initial',emptyPhoto)
+    #cv2.imshow('initial',emptylastSavedFrame)
