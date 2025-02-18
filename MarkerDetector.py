@@ -6,8 +6,8 @@ import numpy as np
 import math
 import serial 
 import time 
-arduino = serial.Serial(port='COM4', baudrate=9600, timeout=.1)  
-class CodeDetection():
+#arduino = serial.Serial(port='COM4', baudrate=9600, timeout=.1)  
+class MarkerDetector():
     def __init__(self, initiImage):# load the input image from disk and resize it
         self.image = initiImage
         self.numberOfCodes = 4
@@ -20,6 +20,7 @@ class CodeDetection():
     def reset_centers(self):
         self.centers = []
         self.markers = []
+        self.angles = []
     def set_image(self,im):
         self.image = im
     def get_image(self):
@@ -152,6 +153,8 @@ class CodeDetection():
         #print(str(self.calculateAngles(triangle)))
     def get_angles(self):
         return self.angles
+    def is_ready(self):
+        return len(self.markers) == self.numberOfCodes 
     def show(self):
         # show the output image
         cv2.imshow("Image", self.image)
@@ -159,76 +162,77 @@ class CodeDetection():
 
 
 #Test and example of the class above
-def main():
-    
-    #delay = 1
-    #window_name = 'OpenCV QR Code'
-
-    qcd = cv2.QRCodeDetector()
-    cap = cv2.VideoCapture(1)
-    ret, frame = cap.read()
-    
-    while True:
-        #cap = cv2.VideoCapture(0)
-        ret, frame = cap.read()
-        #codeDetector.set_image(frame)
-        cv2.imshow("Image", frame)
-        #corners, ids, rejected = codeDetector.detection()
-        #codeDetector.proccesImage(corners, ids, rejected)
-        #codeDetector.show()
-
-        
-camera_id = 0
-delay = 1
-window_name = 'OpenCV QR Code'
-
-qcd = cv2.QRCodeDetector()
-cap = cv2.VideoCapture(1)
-ret, frame = cap.read()
-codeDetector = CodeDetection(frame)
-while not ret:
-    print(ret)
-    ret, frame = cap.read()
-while True:
-    ret, frame = cap.read()
-    codeDetector.set_image(frame)
-    corners, ids, rejected = codeDetector.detection()
-    frame2 = codeDetector.proccesImage(corners, ids, rejected)
-    codeDetector.set_image(frame2)
-    codeDetector.geometryProcessing()
-    codeDetector.reset_centers()
-    if ret:
-        cv2.imshow(window_name, codeDetector.get_image())
-    else:
-        cv2.imshow(window_name, frame)
-    if cv2.waitKey(delay) & 0xFF == ord('r'):
-        test = "{1;30;1} "
-        index = 2
-        for i in codeDetector.get_angles():
-            sense = 1
-            if(index == 1):
-                if(0 < i):
-                    sense = 0
-            else:
-                if(0 < -i):
-                    sense = 0
-            message = "{};{};{}".format(index, abs(i), sense)
-            message = "{" + message + "}"
-            
-            arduino.write(bytes(message, 'utf-8'))
-            time.sleep(0.1)
-            index-=1
-            
-            print(message)
-        #
-        
-        #codeDetector.reset_centers()
-    if cv2.waitKey(delay) & 0xFF == ord('q'):
-        break
-    
-cv2.destroyWindow(window_name)
-    
-
-
-#main()
-    
+#def main():
+#    
+#    #delay = 1
+#    #window_name = 'OpenCV QR Code'
+#
+#    qcd = cv2.QRCodeDetector()
+#    cap = cv2.VideoCapture(1)
+#    ret, frame = cap.read()
+#    
+#    while True:
+#        #cap = cv2.VideoCapture(0)
+#        ret, frame = cap.read()
+#        #codeDetector.set_image(frame)
+#        cv2.imshow("Image", frame)
+#        #corners, ids, rejected = codeDetector.detection()
+#        #codeDetector.proccesImage(corners, ids, rejected)
+#        #codeDetector.show()
+#
+#        
+#camera_id = 0
+#delay = 1
+#window_name = 'OpenCV QR Code'
+#
+#qcd = cv2.QRCodeDetector()
+#cap = cv2.VideoCapture(1)
+#ret, frame = cap.read()
+#codeDetector = MarkerDetector(frame)
+#
+#while not ret:
+#    print(ret)
+#    ret, frame = cap.read()
+#while True:
+#    ret, frame = cap.read()
+#    codeDetector.set_image(frame)
+#    corners, ids, rejected = codeDetector.detection()
+#    frame2 = codeDetector.proccesImage(corners, ids, rejected)
+#    codeDetector.set_image(frame2)
+#    codeDetector.geometryProcessing()
+#    codeDetector.reset_centers()
+#    if ret:
+#        cv2.imshow(window_name, codeDetector.get_image())
+#    else:
+#        cv2.imshow(window_name, frame)
+#    if cv2.waitKey(delay) & 0xFF == ord('r'):
+#        test = "{1;30;1} "
+#        index = 2
+#        for i in codeDetector.get_angles():
+#            sense = 1
+#            if(index == 1):
+#                if(0 < i):
+#                    sense = 0
+#            else:
+#                if(0 < -i):
+#                    sense = 0
+#            message = "{};{};{}".format(index, abs(i), sense)
+#            message = "{" + message + "}"
+#            
+#            arduino.write(bytes(message, 'utf-8'))
+#            time.sleep(0.1)
+#            index-=1
+#            
+#            print(message)
+#        #
+#        
+#        #codeDetector.reset_centers()
+#    if cv2.waitKey(delay) & 0xFF == ord('q'):
+#        break
+#    
+#cv2.destroyWindow(window_name)
+#    
+#
+#
+##main()
+#    

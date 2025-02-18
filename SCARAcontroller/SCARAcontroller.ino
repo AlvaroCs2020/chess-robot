@@ -1,5 +1,5 @@
 
-
+#include <Servo.h>
 class RobotController {
     private:
     int pinDirFst;
@@ -8,6 +8,8 @@ class RobotController {
     int pinStepFst;
     int pinStepScn;
     int pinStepThr;
+    Servo degreeServo;
+    Servo gripperServo;
     public:
     RobotController(int pDirFst, int pDirScn, int pDirThr)
     {
@@ -27,6 +29,10 @@ class RobotController {
       digitalWrite(pinStepFst, LOW);
       digitalWrite(pinDirScn, LOW);
       digitalWrite(pinStepScn, LOW);
+
+      //Servo Handling
+      //degreeServo.attach(9,600,2400);
+      degreeServo.write(0);
       Serial.begin(9600);
       Serial.println(String(pinDirFst));
     }
@@ -60,12 +66,19 @@ class RobotController {
       }     
     
     }
+    void writeDegreeServo(int angle)
+    {
+      degreeServo.write(angle);
+    }
 };
 RobotController robotController(4,6,8);
 char receivedChar;
 boolean newData = false;
+Servo servito;
 void setup() 
 {
+  servito.attach(9);
+  servito.write(90);
   Serial.begin(9600);
   Serial.setTimeout(10);
 }
@@ -84,7 +97,8 @@ void handleSerial()
       if(command.begin()[0] != '{') return;
       int x = command.substring(1).toInt();
       command =  Serial.readStringUntil(';');
-      float y = command.toInt();
+      float y = command.toFloat();
+      int Y = command.toInt();
       command =  Serial.readStringUntil('}');
       int z = command.toInt();
       if(!(z == 1 || z == 0) ) return;
@@ -98,8 +112,12 @@ void handleSerial()
         case 2:
           robotController.moveScn(y,z);
           break;
-        case 3:
-          //robotController.moveThrd(y);
+        case 3: //1 abrir 0 cerrar
+          int sense = 0;
+          if(z==0)sense = 180;
+          servito.write(sense);
+          delay(Y);
+          servito.write(90);
           break;
       }
       //Serial.println(String(x) + " : " + String(y) + " : " + String(z));
