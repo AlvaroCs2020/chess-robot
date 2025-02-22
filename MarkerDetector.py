@@ -105,9 +105,10 @@ class MarkerDetector():
 #    def angleBetw2():
 #        math.degrees(math.acos(() / (2 * b * c)))
     def geometryProcessing(self):
-        
+        if(not self.is_ready()):
+            return
         if(len(self.markers) != self.numberOfCodes):
-            pass
+            return
 
         self.centers.sort()
         angles = []
@@ -125,22 +126,20 @@ class MarkerDetector():
         triangle = []
         
         for i in range(1,len(vectors)):
-            pt = self.centers[i][1]
+            pt1 = self.centers[i][1]
             pt2 = self.centers[i + 1][1]
             y = pt1[1] - pt2[1]
             x1,x2 = vectors[i-1],vectors[i]
             try:
                 angle = math.degrees(math.acos(np.dot(x1,x2) / (np.linalg.norm(x1)*np.linalg.norm(x2))))
-
-                #n = int(angle*100)
-                #angle = angle/100
-                if(0 < y):
+                if(0 <= y):
                     angle *= -1 
                 angle = round(angle,3)
-                cv2.putText(self.image, str(angle),
-                    (pt[0], pt[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.putText(self.image, str(angle), ##PARA VISUALIZAR, MOVER A UN METODO APARTE
+                    (pt1[0], pt1[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (255, 0, 0), 2)
                 angles.append(angle)
+                
 
             except:
                 return
