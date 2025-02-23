@@ -1,27 +1,30 @@
 from MarkerDetector import MarkerDetector # type: ignore
 from BoardProcessor import BoardProcessor
-
+from IkUtils import IkUtils # type: ignore
 import argparse
-import imutils
-import cv2
+import imutils # type: ignore
+import cv2 # type: ignore
 import sys
 import numpy as np # type: ignore
 import math
-import serial 
+import serial # type: ignore
 import time 
 from enum import Enum
 
 class States(Enum):
-    INIT        = 0 #
-    HOME        = 1
-    MOVE_AWAY   = 2
-    MAP_BOARD   = 3
+    INIT                = 0 
+    HOME                = 1
+    MOVE_AWAY           = 2
+    MAP_BOARD           = 3
+    SET_REAL_CORNERS    = 4
     
 state = States.INIT
 
 cap = cv2.VideoCapture(1)
 ret, frame = cap.read()
 codeDetector = MarkerDetector(frame)
+boardProcessor = BoardProcessor()
+ikTools = IkUtils(150,200)
 window_name = 'main'
 home_count = 0
 while not ret:#get video
@@ -90,11 +93,26 @@ def main(state):
         state = States.MAP_BOARD
     elif state == States.MAP_BOARD:
         print("[MAP BOARD]")
+        gray = cv2.cvtColor(ORIGINAL,cv2.COLOR_BGR2GRAY)
+        ret, corners = cv2.findChessboardCorners(gray, (7,7),None)
+        if ret: ##SAVE EMPTY
+            boardProcessor.addCorners(corners, ORIGINAL)
+            staticSlices, staticCoordinates = boardProcessor.saveSlices(ORIGINAL)
+            boardProcessor.setEmptySlices(staticSlices)
+            commandEnterManualMode = "{1;1;1}"
+            arduino.write(bytes(commandEnterManualMode, 'utf-8'))
+            state = States.SET_REAL_CORNERS
+    elif state == States.SET_REAL_CORNERS:
+        print("[SET_REAL_CORNERS]")
+        angle1, angle2 = ikTools.compute_angles(150,200)
+        angle1, angle2 = ikTools.compute_angles(0,350)
+        print(str(angle1) + " : " + str(angle2))
 
     codeDetector.set_image(frame)
-    #codeDetector.geometryProcessing()
     frame = codeDetector.get_image()
+    frame = boardProcessor.GetTechnicView(frame)
     cv2.imshow(window_name, frame)    
+    
     if key & 0xFF == ord('r'):
         print("Reset centers of Markers")
         test = "{2;38.617;0}"

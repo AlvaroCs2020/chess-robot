@@ -6,6 +6,7 @@ class BoardProcessor():
     def __init__(self):
         self.emptySlices = []
         self.doOnlyOnce = True
+        self.corners = []
     def setEmptySlices(self,slices):
         self.emptySlices = slices
     def extract_region(self,image, points):
@@ -43,8 +44,8 @@ class BoardProcessor():
         extracted_region = cv2.bitwise_and(extracted_region, extracted_region, mask=mask)
         
         return extracted_region
-    def saveSlices(self,image, corners):
-        
+    def saveSlices(self,image):
+        corners = self.corners
         self.lastSavedFrame = image
         slices = []
         coordinates = []
@@ -68,7 +69,6 @@ class BoardProcessor():
 
         # Obtengo la media y pongo los circulos
         for i in range(0,len(corners)): #i (0,6) 
-            red += 3
             
             x, y = corners[i][0]  # Extrae los valores
         
@@ -142,6 +142,8 @@ class BoardProcessor():
 
         newCorners = np.concatenate((fstSlice,newCorners, lastSlice), axis=0)
         
+        self.corners = newCorners
+
         return image, newCorners
     def getBiggestError(self, slices, coordinates, img):
         if self.emptySlices == []:
@@ -177,7 +179,12 @@ class BoardProcessor():
         if mseA_score > mseB_score: 
             index = lastIndex
         return index
-
+    def GetTechnicView(self, image):
+        for i in range(0,len(self.corners)): #Show corners saved
+            x, y = self.corners[i][0]
+            image = cv2.circle(image, (int(x), int(y)), 5, (255,0,0), 2)
+        return image
+        
 
 #DEMO
 
@@ -186,6 +193,7 @@ def main():
     cap = cv2.VideoCapture(1)
     doOnlyOnce = True
     ret, img = cap.read()    
+
     while not ret:
         print("[Update latest squaresssnged]")
         ret, img = cap.read()
@@ -212,4 +220,4 @@ def main():
         cv2.imshow("extraction example",boardProcessor.extract_region(img, points))
         cv2.imshow("demo class", original)
         
-main()
+#main()
