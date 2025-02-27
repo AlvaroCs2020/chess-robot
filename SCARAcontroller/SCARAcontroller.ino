@@ -6,13 +6,13 @@ struct Angles {
 };
 const float LENGTH1 = 150.0;
 const float LENGTH2 = 200.0;
-void inverseKinematics(float x, float y, float z, float angles[], float length0,float length1)
+void inverseKinematics(float x, float y, float Z, float angles[], float length0,float length1)
 {
-  float jointAngle2 = atan(z/x) * (180/PI);
+  float jointAngle2 = atan(Z/x) * (180/PI);
   
   //Rotate point to xy plane
   
-  float newX = sqrt(z*z + x*x);
+  float newX = sqrt(Z*Z + x*x);
   float newY = y;
 
   float length2 = sqrt(newX*newX + newY*newY);
@@ -44,42 +44,6 @@ void inverseKinematics(float x, float y, float z, float angles[], float length0,
   angles[1] = jointAngle1+ 90;
 
 }
-Angles computeAngles(float x, float y) {
-    Angles result;
-    float distance = sqrt(x * x + y * y);
-    
-    if (distance > LENGTH1 + LENGTH2) {
-        Serial.println("Target is out of reach");
-        result.theta1 = NAN;
-        result.theta2 = NAN;
-        return result;
-    }
-    
-    float cosTheta2 = (x * x + y * y - LENGTH1 * LENGTH1 - LENGTH2 * LENGTH2) / (2 * LENGTH1 * LENGTH2);
-    result.theta2 = acos(cosTheta2) * 180.0 / M_PI;
-    
-    if (isnan(result.theta2)) {
-        Serial.println("Invalid theta2 calculation");
-        return result;
-    }
-    
-    float sinTheta2 = sqrt(1 - cosTheta2 * cosTheta2);
-    float k1 = LENGTH1 + LENGTH2 * cosTheta2;
-    float k2 = LENGTH2 * sinTheta2;
-    result.theta1 = atan2(y, x) - atan2(k2, k1);
-    result.theta1 = result.theta1 * 180.0 / M_PI;
-    
-    // Adjust theta2 to be relative to the base
-    result.theta2 = 180.0 - result.theta2;
-    
-    // Constrain angles to be within 0-180 degrees
-    result.theta1 = constrain(result.theta1, 0.0, 180.0);
-    result.theta2 = constrain(result.theta2, 0.0, 180.0);
-    
-    return result;
-}
-
-
 
 class RobotController {
     private:
@@ -89,6 +53,8 @@ class RobotController {
     int pinStepFst;
     int pinStepScn;
     int pinStepThr;
+    float angleFst;
+    float angleScn;
     Servo degreeServo;
     Servo gripperServo;
     public:
@@ -110,12 +76,18 @@ class RobotController {
       digitalWrite(pinStepFst, LOW);
       digitalWrite(pinDirScn, LOW);
       digitalWrite(pinStepScn, LOW);
-
+      angleFst = 90.0;
+      angleScn = 90.0;
       //Servo Handling
       //degreeServo.attach(9,600,2400);
       degreeServo.write(0);
       Serial.begin(9600);
       Serial.println(String(pinDirFst));
+    }
+    void setHomeAngles()
+    {
+      this->angleFst = 90.0;
+      this->angleScn = 90.0;
     }
     void moveFst(float angle, int dir)
     {
@@ -129,8 +101,11 @@ class RobotController {
         delay(10);			  	// por 10 mseg
         digitalWrite(pinStepFst, LOW);      	// nivel bajo
         delay(10);			  	// por 10 mseg
-      }  
-    }  
+      }
+      int sign = dir == 0? 1: -1;
+      this->angleFst = this->angleFst +steps*(0.9*reduction)*sign;
+      
+    }
     void moveScn(float angle, int dir)
     {
       float reduction = 0.6;
@@ -145,8 +120,20 @@ class RobotController {
         digitalWrite(pinStepScn, LOW);      	// nivel bajo
         delay(10);			  	// por 10 mseg
       }     
-    
+      int sign = dir == 0? -1: 1;
+      this->angleScn = this->angleScn +steps*(0.9*reduction)*sign;
     }
+    void goTo(float thetaFst, float thetaScn)
+    {
+      Serial.println("sss");
+      float delta = thetaFst - this->angleFst;
+      int dir = thetaFst > this->angleFst ? 0: 1;
+      this->moveFst(abs(delta), dir);
+      
+      delta = thetaScn - this->angleScn;
+      dir = thetaScn > this->angleScn ? 1: 0;
+      this->moveScn(abs(delta), dir);
+    }  
     void writeDegreeServo(int angle)
     {
       degreeServo.write(angle);
@@ -154,13 +141,14 @@ class RobotController {
 };
 RobotController robotController(4,6,8);
 char receivedChar;
-bool manual = 1;
+bool manual = 0;
 //int initalPoint
 boolean newData = false;
 Servo servito;
 Angles angles;
 void setup() 
 {
+  pinMode(2,INPUT);
   servito.attach(9);
   servito.write(90);
   Serial.begin(9600);
@@ -168,13 +156,13 @@ void setup()
 }
 
 void loop() {
-    handleSerial();
-    if(manual) manualMode();
+  handleSerial();
+  if(manual) manualMode();
 }
 void setManualMode()
 {
   manual = !manual;
-  angles = computeAngles(0, 350);
+  //angles = computeAngles(0, 350);
 }
 int desiredPoint[2] = {0,350}; //Extendido
 int currentPoint[2] = {0,350};
@@ -217,12 +205,15 @@ void manualMode()
     desiredPoint[1]++;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
   }
   delay(80);
-  i++;
-  if(i==20)
+
+  //String position = String(desiredPoint[])
+  //Serial.println("")
+  
+  if(digitalRead(2) == LOW)
   {
-    i = 0;
     updatePosition();
   }
+
   //float angulos[2];
   //inverseKinematics(desiredPoint[0], desiredPoint[1], 0, angulos, 200, 150);
   //Angles deltaAngles = computeAngles(desiredPoint[0], desiredPoint[1]);
@@ -245,35 +236,41 @@ void handleSerial()
       float y = command.toFloat();
       int Y = command.toInt();
       command =  Serial.readStringUntil('}');
-      int z = command.toInt();
-      
-      if(!(z == 1 || z == 0) ) return; //data check
-      Serial.println(String(x) + " :  " + String(y)+ " :  " + String(z));
-      
-      if(z == 1 && x == 1 && y == 1 ) // Enter ManualMode
+      int Z = command.toInt();
+      float z = command.toFloat();
+      //(if(!(Z == 1 || Z == 0|| Z == 2) ) return; //data check
+      if(Z == 1 && x == 1 && Y == 1 ) 
       {
-        updatePosition();
-        //setManualMode();
+        robotController.setHomeAngles();
         return;
       }
-      //if(z != 1) return;
-      //if(z != 1 && z != 0) return;
+      //if(Z == 2 && x == 2 && Y == 2 ) // Enter ManualMode
+      //{
+      //  Serial.println("x Recibi el mensaje lokura, aca esta la respuesta");
+      //  return;
+      //}
+      //if(Z != 1) return;
+      //if(Z != 1 && Z != 0) return;
+      Serial.println(String(x) + " :  " + String(y)+ " :  " + String(z));
       switch(x){
         case 1:
-          robotController.moveFst(y,z);
+          robotController.moveFst(y,Z);
           break;
         case 2:
-          robotController.moveScn(y,z);
+          robotController.moveScn(y,Z);
           break;
-        case 3: //1 abrir 0 cerrar
+        case 3: 
+          robotController.goTo(y, z);
+          break;
+        case 4://1 abrir 0 cerrar
           int sense = 0;
-          if(z==0)sense = 180;
+          if(Z==0)sense = 180;
           servito.write(sense);
           delay(Y);
           servito.write(90);
           break;
       }
-      //Serial.println(String(x) + " : " + String(y) + " : " + String(z));
-      //mapCoordinatesToAngles(x,y,z);
+      //Serial.println(String(x) + " : " + String(y) + " : " + String(Z));
+      //mapCoordinatesToAngles(x,y,Z);
   }
 }
