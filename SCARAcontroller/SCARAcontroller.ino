@@ -79,10 +79,9 @@ class RobotController {
       angleFst = 90.0;
       angleScn = 90.0;
       //Servo Handling
-      //degreeServo.attach(9,600,2400);
-      degreeServo.write(0);
+      //degreeServo.attach(10);
+      //degreeServo.write(90);
       Serial.begin(9600);
-      Serial.println(String(pinDirFst));
     }
     void setHomeAngles()
     {
@@ -123,9 +122,24 @@ class RobotController {
       int sign = dir == 0? -1: 1;
       this->angleScn = this->angleScn +steps*(0.9*reduction)*sign;
     }
+
+    void moveThr(float angle, int dir)
+    {
+      int steps = angle;
+
+      Serial.print("El motor 3 se movera: ");
+      Serial.println(steps);
+      digitalWrite(pinDirThr, dir);		
+      for(int i = 0; i < steps; i++){   	
+        digitalWrite(pinStepThr, HIGH);     	// nivel alto
+        delay(1);			  	
+        digitalWrite(pinStepThr, LOW);      	// nivel bajo
+        delay(1);			  	
+      }     
+      
+    }
     void goTo(float thetaFst, float thetaScn)
     {
-      Serial.println("sss");
       float delta = thetaFst - this->angleFst;
       int dir = thetaFst > this->angleFst ? 0: 1;
       this->moveFst(abs(delta), dir);
@@ -134,10 +148,45 @@ class RobotController {
       dir = thetaScn > this->angleScn ? 1: 0;
       this->moveScn(abs(delta), dir);
     }  
-    void writeDegreeServo(int angle)
+    void routine()
     {
-      degreeServo.write(angle);
+      Serial.println("Arrancamos la rutina");
+      this->setHomeAngles();
+      this->goTo(30, 110); //move A
+      this->moveThr(1000, 0); //bajo
+      this->writeDegreeServo(0, 170);//cierro servo
+      this->moveThr(1000, 1); //subo
+      this->goTo(10, 90); //move B
+      this->moveThr(1000, 0); //bajo
+      this->writeDegreeServo(1, 170);//abro servo
+      this->moveThr(1000, 1); //subo
+      delay(1000);
+      this->moveThr(1000, 0); //bajo
+      this->writeDegreeServo(0, 170);//cierro servo
+      this->moveThr(1000, 1); //subo
+      this->goTo(30, 110); //move A
+      this->moveThr(1000, 0); //bajo
+      this->writeDegreeServo(1, 170);//abro servo
+      delay(1000);
+      this->moveThr(1000, 1); //subo
     }
+    void initServo()
+    {
+      this->degreeServo.attach(10);
+      this->degreeServo.write(90);
+    }
+    void writeDegreeServo(int Z, int Y)//1 abrir 0 cerrar
+    {
+      //this->degreeServo.attach(10);
+      Serial.println("servo");
+      
+      int sense = 0;
+      if(Z==0)sense = 180;
+      this->degreeServo.write(sense);
+      delay(Y);
+      this->degreeServo.write(90);
+    }
+
 };
 RobotController robotController(4,6,8);
 char receivedChar;
@@ -149,10 +198,11 @@ Angles angles;
 void setup() 
 {
   pinMode(2,INPUT);
-  servito.attach(9);
-  servito.write(90);
+  //servito.attach(10);
+  //servito.write(90);
   Serial.begin(9600);
   Serial.setTimeout(10);
+  robotController.initServo();
 }
 
 void loop() {
@@ -244,6 +294,11 @@ void handleSerial()
         robotController.setHomeAngles();
         return;
       }
+      if(Z == 9 && x == 9 && Y == 9 ) 
+      {
+        robotController.routine();
+        return;
+      }
       //if(Z == 2 && x == 2 && Y == 2 ) // Enter ManualMode
       //{
       //  Serial.println("x Recibi el mensaje lokura, aca esta la respuesta");
@@ -262,12 +317,17 @@ void handleSerial()
         case 3: 
           robotController.goTo(y, z);
           break;
-        case 4://1 abrir 0 cerrar
-          int sense = 0;
-          if(Z==0)sense = 180;
-          servito.write(sense);
-          delay(Y);
-          servito.write(90);
+        case 4:
+          robotController.moveThr(y,Z);
+          
+          break;
+        case 5://1 abrir 0 cerrar
+          robotController.writeDegreeServo(Z, Y);
+          //int sense = 0;
+          //if(Z==0)sense = 180;
+          //servito.write(sense);
+          //delay(Y);
+          //servito.write(90);
           break;
       }
       //Serial.println(String(x) + " : " + String(y) + " : " + String(Z));
