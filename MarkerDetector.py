@@ -122,7 +122,7 @@ class MarkerDetector():
             #angle = math.degrees(math.acos(np.dot(x1,x2) / (np.linalg.norm(x1)*np.linalg.norm(x2))))
             
             #angles.append(angle)
-            self.image = cv2.line(self.image, pt1,pt2, (255,0, 0), 2)
+            self.image = cv2.line(self.image, pt1,pt2, (0,0, 255), 2)
         triangle = []
         
         for i in range(1,len(vectors)):
@@ -137,7 +137,7 @@ class MarkerDetector():
                 angle = round(angle,3)
                 cv2.putText(self.image, str(angle), ##PARA VISUALIZAR, MOVER A UN METODO APARTE
                     (pt1[0], pt1[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (255, 0, 0), 2)
+                    0.5, (0, 0, 255), 2)
                 angles.append(angle)
                 
 

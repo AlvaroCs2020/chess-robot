@@ -24,7 +24,8 @@ class States(Enum):
     MOVE_AWAY           = 2
     MAP_BOARD           = 3
     SET_REAL_CORNERS    = 4
-    EMPTY               = 5
+    DETEC_LAST_MOVE     = 5
+    EMPTY               = 6
 arduino = serial.Serial(port='COM4', baudrate=9600, timeout=.1)
 time.sleep(1)#Esperamos que se conecte el arduino
 
@@ -47,13 +48,15 @@ current_position = [0,350]
 while not ret:#get video
     print(ret)
     ret, frame = cap.read()
-
-
-
+waiting = False
 def main(state):
     global home_count
+    global waiting
+    global goalTime
     ret, frame = cap.read()
     key = cv2.waitKey(1)
+    
+    currentTime = time.time()
     ORIGINAL = frame.copy()
     
     if state == States.INIT:
@@ -68,51 +71,54 @@ def main(state):
         #codeDetector.reset_centers()
       else:
         state = States.HOME
-        
         print("[HOME]")
     elif state == States.HOME: 
-        codeDetector.geometryProcessing()
-        #state = States.INIT
-        index = 2
-        #Enviamos mensaje al arduino con el motor y los angulos que necesitamos
-        for i in codeDetector.get_angles(): 
-            sense = 1
-            
-            if(index == 1):
-                if(0 < -i):
-                    sense = 0
-            else:
-                if(0 < i):
-                    sense = 0
+        if not waiting:
+            codeDetector.geometryProcessing()
+            #state = States.INIT
+            index = 2
+            #Enviamos mensaje al arduino con el motor y los angulos que necesitamos
+            for i in codeDetector.get_angles(): 
+                sense = 1
+                
+                if(index == 1):
+                    if(0 < -i):
+                        sense = 0
+                else:
+                    if(0 < i):
+                        sense = 0
 
-            message = "{};{};{}".format(index, abs(i), sense)
-            message = "{" + message + "}"
-            print("Message sent to arduino: "+ message)
-            print("Angle for this: "+ str(i))
-            time.sleep(1)
-            arduino.write(bytes(message, 'utf-8'))
+                message = "{};{};{}".format(index, abs(i), sense)
+                message = "{" + message + "}"
+                print("Message sent to arduino: "+ message)
+                print("Angle for this: "+ str(i))
+                #time.sleep(1)
+                arduino.write(bytes(message, 'utf-8'))
+                index-=1
             
-            index-=1
-        command = Commands.C_SET_HOME
-        arduino.write(bytes(command, 'utf-8'))
-        home_count+=1
-        #if home_count == 3:
-        codeDetector.reset_centers()
+            home_count+=1
+            waiting = True
+            #if home_count == 3:
+            codeDetector.reset_centers()
+            goalTime = time.time() + 2
+        elif goalTime <= currentTime:
+            command = Commands.C_SET_HOME
+            arduino.write(bytes(command, 'utf-8'))
+            waiting = False
+            state = States.MOVE_AWAY
+            print("[MOVE AWAY]")
 
-        command = Commands.C_SET_HOME
-        arduino.write(bytes(command, 'utf-8'))
-        time.sleep(1)
-        state = States.MOVE_AWAY
-        print("[MOVE AWAY]")
     elif state == States.MOVE_AWAY:
-        
-        command = commandGoToFromAngles(50,160)
-        
-        arduino.write(bytes(command, 'utf-8'))
-        time.sleep(1)
-        state = States.MAP_BOARD
+        if not waiting:
+            command = commandGoToFromAngles(50,160)
+            arduino.write(bytes(command, 'utf-8'))
+            goalTime = currentTime + 5
+            waiting = True
+        elif goalTime >= currentTime:
+            print("[MAP BOARD]")
+            state = States.MAP_BOARD
+            waiting = False
     elif state == States.MAP_BOARD:
-        print("[MAP BOARD]")
         gray = cv2.cvtColor(ORIGINAL,cv2.COLOR_BGR2GRAY)
         ret, corners = cv2.findChessboardCorners(gray, (7,7),None)
         if ret: ##SAVE EMPTY
@@ -129,8 +135,14 @@ def main(state):
             command = commandGoToFromAngles(90.0,90.0) #RETURN HOME
             arduino.write(bytes(command, 'utf-8'))
             #state = States.SET_REAL_CORNERS
-            state = States.SET_REAL_CORNERS
-            print("[SET_REAL_CORNERS]")
+            state = States.DETEC_LAST_MOVE
+            print("[DETEC_LAST_MOVE]")
+    
+    elif state == States.DETEC_LAST_MOVE:
+        if key & 0xFF == ord('i'):
+            index = boardProcessor.getBiggestError(ORIGINAL)
+            print(index)
+
     elif state == States.SET_REAL_CORNERS:
         
         data = arduino.readline()   #Manual boar calibration
@@ -164,8 +176,13 @@ def main(state):
     elif state == States.EMPTY:
         
         pass
-
+    #print("estado" + str(state.value))
     codeDetector.set_image(frame)
+    if(state.value > 3):
+        codeDetector.reset_centers()
+        corners, ids, rejected = codeDetector.detection()
+        frame = codeDetector.proccesImage(corners, ids, rejected)
+        codeDetector.geometryProcessing()
     frame = codeDetector.get_image()
     frame = boardProcessor.GetTechnicView(frame)
     cv2.imshow(window_name, frame)    

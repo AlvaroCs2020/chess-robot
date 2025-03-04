@@ -7,6 +7,7 @@ class BoardProcessor():
         self.emptySlices = []
         self.doOnlyOnce = True
         self.corners = []
+        self.biggestErrorIndex = 99
     def setEmptySlices(self,slices):
         self.emptySlices = slices
     def extract_region(self,image, points):
@@ -59,7 +60,8 @@ class BoardProcessor():
                 extracted = self.extract_region(image, points)
                 slices.append(extracted)
                 coordinates.append(points) 
-
+        self.lastSavedSlices = slices
+        self.cordinatesSlices = coordinates 
         return slices, coordinates
 # Math ugliest shi
     def addCorners(self, corners, image):
@@ -145,16 +147,16 @@ class BoardProcessor():
         self.corners = newCorners
 
         return image, newCorners
-    def getBiggestError(self, slices, coordinates, img):
+    def getBiggestError(self, img):
         if self.emptySlices == []:
             return 0
         #get slices
         indexs = []
-        for i in range(0,len(slices)):
-            extracted = self.extract_region(img, coordinates[i])
+        for i in range(0,len(self.lastSavedSlices)):
+            extracted = self.extract_region(img, self.cordinatesSlices[i])
             
             gray1 = cv2.cvtColor(extracted, cv2.COLOR_BGR2GRAY)
-            gray2 = cv2.cvtColor(slices[i], cv2.COLOR_BGR2GRAY)
+            gray2 = cv2.cvtColor(self.lastSavedSlices[i], cv2.COLOR_BGR2GRAY)
             
             mse_score = int(np.mean((gray1.astype("float") - gray2.astype("float")) ** 2))
             indexs.append((i,int(mse_score)))
@@ -169,20 +171,31 @@ class BoardProcessor():
         #Ahora, determinamos cual de los dos cuadrados es mas probable que este vacio
         #Si estamos moviendo una pieza y buscamos saber a donde fue, no deberiamos devovler un indice vacio
         gray1 = cv2.cvtColor(self.emptySlices[index], cv2.COLOR_BGR2GRAY)
-        gray2 = cv2.cvtColor(slices[index], cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(self.lastSavedSlices[index], cv2.COLOR_BGR2GRAY)
         mseA_score = int(np.mean((gray1.astype("float") - gray2.astype("float")) ** 2))
         
         gray1 = cv2.cvtColor(self.emptySlices[lastIndex], cv2.COLOR_BGR2GRAY)
-        gray2 = cv2.cvtColor(slices[lastIndex], cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(self.lastSavedSlices[lastIndex], cv2.COLOR_BGR2GRAY)
         mseB_score = int(np.mean((gray1.astype("float") - gray2.astype("float")) ** 2))
         #devolvemos el que sea MAS distinto de la foto vacia
         if mseA_score > mseB_score: 
             index = lastIndex
+        self.biggestErrorIndex = index
         return index
     def GetTechnicView(self, image):
         for i in range(0,len(self.corners)): #Show corners saved
             x, y = self.corners[i][0]
             image = cv2.circle(image, (int(x), int(y)), 5, (255,0,0), 2)
+        if(self.biggestErrorIndex != 99): #Ya se uso por lo menos una vez el biggest error
+            square = self.cordinatesSlices[self.biggestErrorIndex]
+            topRight = (int(square[0][0]), int(square[0][1]))
+            bottomRight = (int(square[1][0]), int(square[1][1]))
+            bottomLeft = (int(square[2][0]), int(square[2][1]))
+            topLeft = (int(square[3][0]), int(square[3][1]))
+            image = cv2.line(image, topLeft, topRight, (0, 255, 0), 2)
+            image = cv2.line(image, topRight, bottomRight, (0, 255, 0), 2)
+            image = cv2.line(image, bottomRight, bottomLeft, (0, 255, 0), 2)
+            image = cv2.line(image, bottomLeft, topLeft, (0, 255, 0), 2)
         return image
         
 
