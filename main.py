@@ -1,6 +1,7 @@
 from MarkerDetector import MarkerDetector # type: ignore
 from BoardProcessor import BoardProcessor
 from IkUtils import IkUtils # type: ignore
+import server
 import argparse
 import imutils # type: ignore
 import cv2 # type: ignore
@@ -10,13 +11,18 @@ import math
 import serial # type: ignore
 import time 
 from enum import Enum
+import threading
 def commandGoToFromAngles(angle1, angle2):
     command = "3;{};{}".format(str(angle1),str(angle2))
     command = "{" + command + "}"
     return command
 
 class Commands():
-    C_SET_HOME = "{1;1;1}" 
+    C_SET_HOME = "{1;1;1}"
+    C_ADD_UP   = "{7;7;1}"
+    C_ADD_DOWN = "{7;7;4}"
+    C_ADD_LEFT = "{7;7;2}"
+    C_ADD_RIGHT= "{7;7;3}" 
 
 class States(Enum):
     INIT                = 0 
@@ -25,7 +31,8 @@ class States(Enum):
     MAP_BOARD           = 3
     SET_REAL_CORNERS    = 4
     DETEC_LAST_MOVE     = 5
-    EMPTY               = 6
+    LISTEN_SERVER       = 6
+    EMPTY               = 7
 arduino = serial.Serial(port='COM4', baudrate=9600, timeout=.1)
 time.sleep(1)#Esperamos que se conecte el arduino
 
@@ -36,7 +43,7 @@ def moveTo(angleFst, angleScnd):
     test = "{2;60;1}"
     arduino.write(bytes(test, 'utf-8'))
 
-state = States.INIT
+state = States.LISTEN_SERVER
 cap = cv2.VideoCapture(1)
 ret, frame = cap.read()
 codeDetector = MarkerDetector(frame)
@@ -45,10 +52,14 @@ ikTools = IkUtils(200,150)
 window_name = 'main'
 home_count = 0
 current_position = [0,350]
+flask_thread = threading.Thread(target=server.run_server, daemon=True)
 while not ret:#get video
     print(ret)
     ret, frame = cap.read()
+server.set_frame(frame, ret)    
+flask_thread.start()
 waiting = False
+
 def main(state):
     global home_count
     global waiting
@@ -112,12 +123,14 @@ def main(state):
         if not waiting:
             command = commandGoToFromAngles(50,160)
             arduino.write(bytes(command, 'utf-8'))
-            goalTime = currentTime + 5
+            goalTime = time.time() + 7
             waiting = True
-        elif goalTime >= currentTime:
+        elif goalTime <= currentTime:
             print("[MAP BOARD]")
             state = States.MAP_BOARD
             waiting = False
+        else:
+            print("Moving away")
     elif state == States.MAP_BOARD:
         gray = cv2.cvtColor(ORIGINAL,cv2.COLOR_BGR2GRAY)
         ret, corners = cv2.findChessboardCorners(gray, (7,7),None)
@@ -129,12 +142,12 @@ def main(state):
             #arduino.write(bytes(commandEnterManualMode, 'utf-8')) #El robot entra en manual mode
             #HOME
             
-            command = "{2;30;0}" #RETURN HOME
-            arduino.write(bytes(command, 'utf-8'))
-            time.sleep(0.2)
-            command = commandGoToFromAngles(90.0,90.0) #RETURN HOME
-            arduino.write(bytes(command, 'utf-8'))
-            #state = States.SET_REAL_CORNERS
+            #command = "{2;30;0}" #RETURN HOME
+            #arduino.write(bytes(command, 'utf-8'))
+            #time.sleep(0.2)
+            #command = commandGoToFromAngles(90.0,90.0) #RETURN HOME
+            #arduino.write(bytes(command, 'utf-8'))
+            ##state = States.SET_REAL_CORNERS
             state = States.DETEC_LAST_MOVE
             print("[DETEC_LAST_MOVE]")
     
@@ -173,12 +186,26 @@ def main(state):
         #angle1, angle2 = ikTools.compute_angles(150,200)
         #angle1, angle2 = ikTools.compute_angles(0,350)
         #print(str(angle1) + " : " + str(angle2))
-    elif state == States.EMPTY:
-        
+    elif state == States.LISTEN_SERVER:
+        commandFromServer = server.get_command()
+        if(commandFromServer == '1'):
+            command = Commands.C_ADD_UP
+        elif(commandFromServer == '2'):
+            command = Commands.C_ADD_LEFT
+        elif(commandFromServer == '3'):
+            command = Commands.C_ADD_RIGHT
+        elif(commandFromServer == '4'):
+            command = Commands.C_ADD_DOWN
+
+        if(commandFromServer != 0):
+            print("llego un  "+ str(commandFromServer))
+            
+            arduino.write(bytes(command, 'utf-8'))
+    elif state == States.EMPTY:     
         pass
     #print("estado" + str(state.value))
     codeDetector.set_image(frame)
-    if(state.value > 3):
+    if(state.value > 1):
         codeDetector.reset_centers()
         corners, ids, rejected = codeDetector.detection()
         frame = codeDetector.proccesImage(corners, ids, rejected)
@@ -188,12 +215,15 @@ def main(state):
     cv2.imshow(window_name, frame)    
     
     if key & 0xFF == ord('r'):
-        print("Reset centers of Markers")
-        test = "{2;38.617;0}"
-        arduino.write(bytes(test, 'utf-8'))
+        print("[SE INICIA LA MAQUINA DE ESTADOS]")
+        state = States.INIT
+        ##test = "{2;38.617;0}"
+        ##arduino.write(bytes(test, 'utf-8'))
         #codeDetector.reset_centers()
         #state = States.INIT
-
+    
+    server.set_frame(frame.copy(), ret)
+    #
     return state
 
 

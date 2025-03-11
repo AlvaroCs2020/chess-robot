@@ -4,15 +4,46 @@ struct Angles {
     float theta1;
     float theta2;
 };
+
+#define L1 200.0  // Longitud del primer link (en mm)
+#define L2 150.0  // Longitud del segundo link (en mm)
+
+// Función para resolver la cinemática inversa
+bool InverseKinematics(float x, float y, float &theta1, float &theta2) {
+    float d = sqrt(x * x + y * y);
+    
+    if (d > (L1 + L2) || d < fabs(L1 - L2)) {
+        Serial.println("Punto fuera del alcance.");
+        return false;
+    }
+
+    float cosTheta2 = (x * x + y * y - L1 * L1 - L2 * L2) / (2 * L1 * L2);
+    if (cosTheta2 < -1 || cosTheta2 > 1) {
+        Serial.println("Error matemático en acos.");
+        return false;
+    }
+
+    theta2 = acos(cosTheta2) * 180.0 / M_PI; // Convertir a grados
+
+    float k1 = L1 + L2 * cosTheta2;
+    float k2 = L2 * sin(acos(cosTheta2));
+
+    theta1 = atan2(y, x) - atan2(k2, k1);
+    theta1 = theta1 * 180.0 / M_PI; // Convertir a grados
+    // Ajuste para mantener dentro del rango [0, 180]
+    /*
+    if (theta1 < 0 || theta1 > 180 || theta2 < 0 || theta2 > 180) {
+        Serial.println("Ángulos fuera de rango.");
+        return false;
+    }
+    */
+    return true;
+}
 const float LENGTH1 = 150.0;
 const float LENGTH2 = 200.0;
-void inverseKinematics(float x, float y, float Z, float angles[], float length0,float length1)
+void inverseKinematics(float x, float y, float angles[], float length0,float length1)
 {
-  float jointAngle2 = atan(Z/x) * (180/PI);
-  
-  //Rotate point to xy plane
-  
-  float newX = sqrt(Z*Z + x*x);
+  float newX = x;
   float newY = y;
 
   float length2 = sqrt(newX*newX + newY*newY);
@@ -92,8 +123,8 @@ class RobotController {
     {
       float reduction = 0.6;
       int steps = angle/(0.9*reduction);
-      Serial.print("El motor 1 se movera: ");
-      Serial.println(steps);
+      //Serial.print("El motor 1 se movera: ");
+      //Serial.println(steps);
       digitalWrite(pinDirFst, dir);		// giro en un sentido
       for(int i = 0; i < steps; i++){   	// 200 pasos para motor de 0.9 grados de angulo de paso
         digitalWrite(pinStepFst, HIGH);     	// nivel alto
@@ -110,14 +141,14 @@ class RobotController {
       float reduction = 0.6;
       int steps = angle/(0.9*reduction);
 
-      Serial.print("El motor 2 se movera: ");
-      Serial.println(steps);
+      //Serial.print("El motor 2 se movera: ");
+      //Serial.println(steps);
       digitalWrite(pinDirScn, dir);		// giro en un sentido
       for(int i = 0; i < steps; i++){   	// 200 pasos para motor de 0.9 grados de angulo de paso
         digitalWrite(pinStepScn, HIGH);     	// nivel alto
-        delay(10);			  	// por 10 mseg
+        delay(20);			  	// por 10 mseg
         digitalWrite(pinStepScn, LOW);      	// nivel bajo
-        delay(10);			  	// por 10 mseg
+        delay(20);			  	// por 10 mseg
       }     
       int sign = dir == 0? -1: 1;
       this->angleScn = this->angleScn +steps*(0.9*reduction)*sign;
@@ -140,6 +171,8 @@ class RobotController {
     }
     void goTo(float thetaFst, float thetaScn)
     {
+      thetaFst = constrain(thetaFst, 0, 180);
+      thetaScn = constrain(thetaScn, 0, 180);
       float delta = thetaFst - this->angleFst;
       int dir = thetaFst > this->angleFst ? 0: 1;
       this->moveFst(abs(delta), dir);
@@ -190,11 +223,13 @@ class RobotController {
 };
 RobotController robotController(4,6,8);
 char receivedChar;
-bool manual = 0;
+bool manual = 1;
 //int initalPoint
 boolean newData = false;
 Servo servito;
 Angles angles;
+int desiredPoint[2] = {0,350}; //Extendido
+int currentPoint[2] = {0,350};
 void setup() 
 {
   pinMode(2,INPUT);
@@ -203,25 +238,33 @@ void setup()
   Serial.begin(9600);
   Serial.setTimeout(10);
   robotController.initServo();
+  //robotController.goTo(180, 90);
 }
 
 void loop() {
   handleSerial();
   if(manual) manualMode();
+  /*
+  robotController.goTo(0, 90);
+  delay(1500);
+  robotController.goTo(28.5, 86.1);
+  delay(1500);
+  robotController.goTo(56, 77.7);
+  delay(1500);
+  */
 }
 void setManualMode()
 {
   manual = !manual;
   //angles = computeAngles(0, 350);
 }
-int desiredPoint[2] = {0,350}; //Extendido
-int currentPoint[2] = {0,350};
+
 void updatePosition()
 {
   float currentAngles[2];
   float desiredAngles[2]; 
-  inverseKinematics(currentPoint[0], currentPoint[1], 0, currentAngles, 200, 150);
-  inverseKinematics(desiredPoint[0], desiredPoint[1], 0, desiredAngles, 200, 150);
+  inverseKinematics(currentPoint[0], currentPoint[1],currentAngles, 200, 150);
+  inverseKinematics(desiredPoint[0], desiredPoint[1], desiredAngles, 200, 150);
   float deltaAngle1 = desiredAngles[0] - currentAngles[0];
   float deltaAngle2 = desiredAngles[1] - currentAngles[1];
   int fstCuadrant = desiredPoint[0] > 0? 1:-1;
@@ -236,36 +279,55 @@ void updatePosition()
 int i = 0;
 void manualMode()
 {
+  desiredPoint[0] =constrain(desiredPoint[0], -200, 200);
+  desiredPoint[1] =constrain(desiredPoint[1], 0, 350);
   int potX = analogRead(A0);
   int potY = analogRead(A1);
   if (potX > 800) 
   {
-    desiredPoint[0]--;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
+    desiredPoint[0]-= 2;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));return;
   }
   else if (potX < 200) 
   {
-    desiredPoint[0]++;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
+    desiredPoint[0]+= 2;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));return;
   }
   else if (potY > 800) 
   {
-    desiredPoint[1]--;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
+    desiredPoint[1]-= 2;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));return;
   }
   else if (potY < 200) 
   {
-    desiredPoint[1]++;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
+    desiredPoint[1]+= 2;Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));return;
   }
-  delay(80);
+  delay(50);
+  float theta1, theta2;
+  InverseKinematics(desiredPoint[1], desiredPoint[0], theta1, theta2);
+  float delta1, delta2;
 
-  //String position = String(desiredPoint[])
+  delta1 = 90 -theta1;
+  delta2 = 90-theta2-theta1;
+  robotController.goTo(delta2, delta1);
+  //Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
+  //Serial.println("Angulos : "+String(angulos[0]) + " : " + String(angulos[1]));
+  //robotController.goTo(angulos[0], angulos[1]);
+  ////String position = String(desiredPoint[])
   //Serial.println("")
   
   if(digitalRead(2) == LOW)
   {
-    updatePosition();
+    float theta1, theta2;
+    InverseKinematics(desiredPoint[1], desiredPoint[0], theta1, theta2);
+    float delta1, delta2;
+
+    delta1 = 90 -theta1;
+    delta2 = 90-theta2-theta1;
+    robotController.goTo(delta2, delta1);
+    Serial.println("Angulos SCN : "+String(theta2) + " :  FST" + String(theta1));
+    //Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
+    delay(100);
   }
 
-  //float angulos[2];
-  //inverseKinematics(desiredPoint[0], desiredPoint[1], 0, angulos, 200, 150);
+  //
   //Angles deltaAngles = computeAngles(desiredPoint[0], desiredPoint[1]);
   //Serial.println("Punto : "+String(desiredPoint[0]) + " : " + String(desiredPoint[1]));
   //Serial.println("Angulos : "+String(angulos[0]) + " : " + String(angulos[1]));
@@ -273,7 +335,7 @@ void manualMode()
 
 }
 
-void handleSerial()
+void handleSerial() //funcion desvirtuada
 {
   // send data only when you receive data:
   if (Serial.available() > 0) {
@@ -299,13 +361,24 @@ void handleSerial()
         robotController.routine();
         return;
       }
-      //if(Z == 2 && x == 2 && Y == 2 ) // Enter ManualMode
-      //{
-      //  Serial.println("x Recibi el mensaje lokura, aca esta la respuesta");
-      //  return;
-      //}
-      //if(Z != 1) return;
-      //if(Z != 1 && Z != 0) return;
+
+
+      if (Z == 3 && x == 7 && Y == 7 ) //esta malisimo esto
+      {
+        desiredPoint[0]-= 10;return;
+      }
+      else if (Z == 2 && x == 7 && Y == 7 ) 
+      {
+        desiredPoint[0]+= 102;return;
+      }
+      else if (Z == 4 && x == 7 && Y == 7 ) 
+      {
+        desiredPoint[1]-= 10;return;
+      }
+      else if (Z == 1 && x == 7 && Y == 7 ) 
+      {
+        desiredPoint[1]+= 10;return;
+      }
       Serial.println(String(x) + " :  " + String(y)+ " :  " + String(z));
       switch(x){
         case 1:
