@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 from flask import Flask, Response, request, jsonify
+from flask import Flask, render_template
+from flask_socketio import SocketIO # type: ignore
 import serial # type: ignore
 import time 
 global frame
@@ -15,7 +17,7 @@ def set_frame(video, suc):
     global success
     success = suc
     frame = video
-
+socketio = SocketIO(app, cors_allowed_origins="*")
 def generate_frames():
     global frame
     global success
@@ -26,10 +28,24 @@ def generate_frames():
         frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
+def generate_frames_resized():
+    global frame
+    global success
+    while True:
+        if not success:
+            break
+        img_resized = cv2.resize(frame, (400,300), interpolation=cv2.INTER_AREA)
+        _, buffer = cv2.imencode('.jpg', img_resized)
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/video_feed_android')
+def video_android_android():
+    return Response(generate_frames_resized(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 # Nuevo endpoint para recibir datos desde MAUI
 @app.route('/receive_data', methods=['POST'])
@@ -50,6 +66,6 @@ def get_command():
         out = 0
     return out
 def run_server():
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=8081, debug=False, threaded=True)
 #if __name__ == '__main__':
 #    app.run(host='0.0.0.0', port=5000, debug=False)

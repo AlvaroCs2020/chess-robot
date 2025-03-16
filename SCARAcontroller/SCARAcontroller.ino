@@ -86,6 +86,7 @@ class RobotController {
     int pinStepThr;
     float angleFst;
     float angleScn;
+    bool controllersState;
     Servo degreeServo;
     Servo gripperServo;
     public:
@@ -103,16 +104,24 @@ class RobotController {
       pinMode(pinStepFst, OUTPUT);
       pinMode(pinStepScn, OUTPUT);
       pinMode(pinStepThr, OUTPUT);
+      pinMode(13, OUTPUT); //CONTROLLER PINS
+      digitalWrite(13, LOW);
       digitalWrite(pinDirFst, LOW);
       digitalWrite(pinStepFst, LOW);
       digitalWrite(pinDirScn, LOW);
       digitalWrite(pinStepScn, LOW);
       angleFst = 90.0;
       angleScn = 90.0;
+      controllersState = LOW;
       //Servo Handling
       //degreeServo.attach(10);
       //degreeServo.write(90);
       Serial.begin(9600);
+    }
+    void handleControllers()
+    {
+      this->controllersState = !this->controllersState;
+      digitalWrite(13, this->controllersState);
     }
     void setHomeAngles()
     {
@@ -378,6 +387,10 @@ void handleSerial() //funcion desvirtuada
       else if (Z == 1 && x == 7 && Y == 7 ) 
       {
         desiredPoint[1]+= 10;return;
+      }
+      else if (Z == 5 && x == 7 && Y == 7 ) 
+      {
+        robotController.handleControllers();
       }
       Serial.println(String(x) + " :  " + String(y)+ " :  " + String(z));
       switch(x){

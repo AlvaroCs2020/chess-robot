@@ -22,7 +22,8 @@ class Commands():
     C_ADD_UP   = "{7;7;1}"
     C_ADD_DOWN = "{7;7;4}"
     C_ADD_LEFT = "{7;7;2}"
-    C_ADD_RIGHT= "{7;7;3}" 
+    C_ADD_RIGHT= "{7;7;3}"
+    C_CONTROLER= "{7;7;5}" 
 
 class States(Enum):
     INIT                = 0 
@@ -196,6 +197,8 @@ def main(state):
             command = Commands.C_ADD_RIGHT
         elif(commandFromServer == '4'):
             command = Commands.C_ADD_DOWN
+        elif(commandFromServer == '5'):
+            command = Commands.C_CONTROLER
 
         if(commandFromServer != 0):
             print("llego un  "+ str(commandFromServer))
