@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="WebCam.MainPage"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit">
+
+    <!-- Título de la aplicación -->
+    
+
+    <!-- Contenedor principal en Grid -->
+    <ScrollView>
+        <VerticalStackLayout Padding="20">
+            <!--<Label Text="Remote control App"
+               Style="{StaticResource Headline}"
+               SemanticProperties.HeadingLevel="Level1" />-->
+            <Grid 
+          RowDefinitions="*" ColumnDefinitions="*, *" HorizontalOptions="FillAndExpand">
+            <!-- Columna 0 - WebViewhttp://192.168.100.47:8080/video_feed -->
+            <Grid   Grid.Column="0" 
+                  RowDefinitions="Auto,Auto"
+                  ColumnDefinitions="*"
+                  HorizontalOptions="FillAndExpand"
+                  VerticalOptions="Center">
+
+            <WebView x:Name="myWebView"
+                    
+                    
+                    HorizontalOptions="FillAndExpand"
+                    VerticalOptions="FillAndExpand"
+                    Grid.Row="0">
+            <WebView.WidthRequest>
+                <OnPlatform x:TypeArguments="x:Double">
+                        <On Platform="Android" Value="400" />
+                        <On Platform="WinUI" Value="650" />
+                </OnPlatform>
+            </WebView.WidthRequest>
+            <WebView.HeightRequest>
+                <OnPlatform x:TypeArguments="x:Double">
+                    <On Platform="Android" Value="300" />
+                    <On Platform="WinUI" Value="600" />
+                </OnPlatform>
+            </WebView.HeightRequest>
+            </WebView>
+        
+            <FlexLayout Grid.Row="1" Direction="Row" JustifyContent="SpaceAround">
+                <Entry x:Name="entry"
+                    WidthRequest="200"
+                   Placeholder="Enter text"
+                   TextChanged="OnEntryTextChanged"
+                   Completed="OnEntryCompleted"/>
+                <Button Text="Update IP"
+                    Clicked="OnUpdateIpButtonClicked"  VerticalOptions="Center" FontSize="10"/>
+
+            </FlexLayout>
+        </Grid>
+        <FlexLayout Grid.Column="1" Direction="Column" JustifyContent="Center">
+            <Button Text="Turn ON/OFF controllers"  
+            Clicked="OnControllerButtonClicked"
+            HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand" FontSize="12" />
+            <BoxView HeightRequest="20" Opacity="0" />
+            <!-- Columna 1 - Controles en un Grid -->
+            <Grid 
+                  RowDefinitions="Auto, *, Auto"
+                  ColumnDefinitions=" *"
+                  HorizontalOptions="FillAndExpand"
+                  VerticalOptions="Center">
+
+                <!-- Fila 0 - Botón Arriba -->
+                <Button Text="↑" Grid.Row="0" Grid.Column="0"
+                        WidthRequest="100" HeightRequest="75"
+                        Clicked="OnUpButtonClicked"
+                        HorizontalOptions="Center" VerticalOptions="Center" FontSize="28"/>
+
+                <!-- Aquí usaremos un Grid de 3 columnas y el boton de izquierda tomará la columna 0 y el de derecha la columna 2 -->
+                <!-- Fila 1 - Botones Izquierda y Derecha -->
+                <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="Auto, Auto, Auto" HorizontalOptions="Center">
+                    <!-- Botón de Izquierda con un Offset hacia el centro -->
+                    <Button Text="←" Grid.Column="0" WidthRequest="100" HeightRequest="75"
+                            Clicked="OnLeftButtonClicked"
+                            HorizontalOptions="Center" VerticalOptions="Center" FontSize="28"/>
+
+                    <!-- Columna vacía para el offset -->
+                    <Label Grid.Column="1" HorizontalOptions="Center" WidthRequest="100"/>
+
+                    <!-- Botón de Derecha con un Offset hacia el centro -->
+                    <Button Text="→" Grid.Column="2" WidthRequest="100" HeightRequest="75"
+                            Clicked="OnRightButtonClicked"
+                            HorizontalOptions="Center" VerticalOptions="Center" FontSize="28"/>
+                </Grid>
+                <!-- Fila 2 - Botón Abajo -->
+                <Button Text="↓" Grid.Row="2" Grid.Column="0"
+                        WidthRequest="100" HeightRequest="75"
+                        Clicked="OnDownButtonClicked"
+                        HorizontalOptions="Center" VerticalOptions="Center" FontSize="28"/>
+            </Grid>
+            <BoxView HeightRequest="20" Opacity="0" />
+            <Image Source="argentina.png"
+                HeightRequest="80"
+                Aspect="AspectFit"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"/>
+                </FlexLayout>
+    </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

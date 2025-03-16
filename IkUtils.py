@@ -73,14 +73,14 @@ class IkUtils:
 
         # Se retorna el ángulo del hombro y el ángulo del codo (se le suma 90 al ángulo del codo, como en la función Arduino)
         return jointAngle1+90, jointAngle0
-ikTools = IkUtils(200,150)
-angle1, angle2 = ikTools.compute_angles(0,350)
-print(str(angle1) + " : " + str(angle2))
-angle1, angle2 = ikTools.compute_angles(150,200)
-print(str(angle1) + " : " + str(angle2))
-
-angle1, angle2 = ikTools.compute_angles(350,0)
-print(str(angle1) + " : " + str(angle2))
-angle1, angle2 = ikTools.compute_angles(250,0)
-print(str(angle1) + " : " + str(angle2))
+#ikTools = IkUtils(200,150)
+#angle1, angle2 = ikTools.compute_angles(0,350)
+#print(str(angle1) + " : " + str(angle2))
+#angle1, angle2 = ikTools.compute_angles(150,200)
+#print(str(angle1) + " : " + str(angle2))
+#
+#angle1, angle2 = ikTools.compute_angles(350,0)
+#print(str(angle1) + " : " + str(angle2))
+#angle1, angle2 = ikTools.compute_angles(250,0)
+#print(str(angle1) + " : " + str(angle2))
 

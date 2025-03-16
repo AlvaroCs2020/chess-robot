@@ -1,0 +1,54 @@
+@"
+# .NET Core
+bin/
+obj/
+
+# .NET MAUI
+.vscode/
+.idea/
+project.lock.json
+project.fragment.lock.json
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Windows Installer Packaging
+*.vdproj
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# User-specific files
+# .NET tools
+.vs/
+
+# JetBrains Rider
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Android files
+.idea/
+.gradle/
+local.properties
+*.apk
+*.ap_ 
+*.aar
+bin/
+obj/
+
+# iOS files
+bin/
+obj/
+"@ | Out-File -FilePath .gitignore -Encoding utf8
